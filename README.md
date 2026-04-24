@@ -222,5 +222,3 @@ Referrals + Offers             → Jul 2027 🏆
 
 ---
 
-Built for: Vivek Patne | CSE-DS | RNSIT | 2028 Batch
-Target: 20–30 LPA | Atlassian • Adobe • Razorpay • PhonePe
