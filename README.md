@@ -211,14 +211,5 @@ ETA is calculated dynamically based on your average sessions per day.
 
 ---
 
-## 🎯 Your Goal
 
-```
-Phase 1 (348 sessions + 283 Qs) → Nov 2026
-Phase 2 (372 sessions + 299 Qs) → May 2027
-Projects + Resume              → Jun 2027
-Referrals + Offers             → Jul 2027 🏆
-```
-
----
 
