@@ -11,9 +11,10 @@ const app = express();
 
 //  ADD THIS BEFORE routes
 app.use(cors({
-  origin: "http://localhost:3000", // your frontend
+  origin: "http://localhost:5173", // your frontend
   credentials: true
 }));
+
 
 app.use(express.json());
 
