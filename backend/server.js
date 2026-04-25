@@ -1,40 +1,48 @@
 const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
-require("dotenv").config();
+const dotenv = require("dotenv");
+const connectDB = require("./config/db");
+const cors = require("cors"); //  ADD THIS
 
-const progressRoutes = require("./routes/progress");
-const weekendRoutes  = require("./routes/weekend");
-const contestRoutes  = require("./routes/contest");
-const statsRoutes    = require("./routes/stats");
+dotenv.config();
+
+connectDB();
 
 const app = express();
 
-// ── Middleware ────────────────────────────────────────────────────────────────
-app.use(cors({ origin: process.env.FRONTEND_URL || "*" }));
+//  ADD THIS BEFORE routes
+app.use(cors({
+  origin: "http://localhost:3000", // your frontend
+  credentials: true
+}));
+
 app.use(express.json());
 
-// ── Routes ────────────────────────────────────────────────────────────────────
-app.use("/api/progress", progressRoutes);
-app.use("/api/weekend",  weekendRoutes);
-app.use("/api/contest",  contestRoutes);
-app.use("/api/stats",    statsRoutes);
+// Routes
+app.use("/api/auth", require("./routes/authRoutes"));
+app.use("/api/progress", require("./routes/progressRoutes"));
+app.use("/api/stats", require("./routes/statsRoutes"));
 
-// ── Health check ──────────────────────────────────────────────────────────────
-app.get("/", (req, res) => {
-  res.json({ status: "DSA Tracker API running 🚀" });
+// Health check
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// ── DB + Start ────────────────────────────────────────────────────────────────
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: "Route not found" });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(err.statusCode || 500).json({
+    success: false,
+    message: err.message || "Internal Server Error",
+  });
+});
+
 const PORT = process.env.PORT || 5000;
 
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log("✅ MongoDB connected");
-    app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-  })
-  .catch((err) => {
-    console.error("❌ DB connection failed:", err.message);
-    process.exit(1);
-  });
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT} [${process.env.NODE_ENV}]`);
+});

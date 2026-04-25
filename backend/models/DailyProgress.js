@@ -1,34 +1,62 @@
 const mongoose = require("mongoose");
 
-const DailyProgressSchema = new mongoose.Schema(
+const dailyProgressSchema = new mongoose.Schema(
   {
-    date: {
-      type: String, // "YYYY-MM-DD"
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       required: true,
-      unique: true,
+      index: true,
+    },
+    date: {
+      type: Date,
+      default: () => {
+        // Normalize to start of day (UTC) so one entry per day is enforceable
+        const d = new Date();
+        d.setUTCHours(0, 0, 0, 0);
+        return d;
+      },
+    },
+    sessions: {
+      type: Number,
+      required: [true, "Sessions count is required"],
+      min: [0, "Sessions cannot be negative"],
+      default: 0,
+    },
+    questions: {
+      type: Number,
+      required: [true, "Questions count is required"],
+      min: [0, "Questions cannot be negative"],
+      default: 0,
+    },
+    topic: {
+      type: String,
+      trim: true,
+      maxlength: [100, "Topic cannot exceed 100 characters"],
+      default: "",
+    },
+    notesDone: {
+      type: Boolean,
+      default: false,
+    },
+    revisionDone: {
+      type: Boolean,
+      default: false,
     },
     dayType: {
       type: String,
-      enum: ["normal", "exam", "holiday"],
+      enum: {
+        values: ["normal", "exam", "holiday"],
+        message: "dayType must be one of: normal, exam, holiday",
+      },
+      required: [true, "dayType is required"],
       default: "normal",
     },
-    // Targets (auto-calculated)
-    targetSessions:  { type: Number, default: 2 },
-    targetQuestions: { type: Number, default: 2 },
-
-    // Actuals (user fills)
-    sessionsCompleted:  { type: Number, default: 0 },
-    questionsCompleted: { type: Number, default: 0 },
-
-    topic:      { type: String, default: "" },
-    notesMade:  { type: Boolean, default: false },
-    revised:    { type: Boolean, default: false },
-    notes:      { type: String, default: "" },
-
-    // Which phase this day belongs to
-    phase: { type: Number, enum: [1, 2], default: 1 },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model("DailyProgress", DailyProgressSchema);
+// Compound index: one entry per user per day
+dailyProgressSchema.index({ userId: 1, date: 1 }, { unique: true });
+
+module.exports = mongoose.model("DailyProgress", dailyProgressSchema);

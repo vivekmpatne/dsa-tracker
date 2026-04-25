@@ -1,216 +1,152 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { fetchDashboard } from "../utils/api";
-import { getBackup, calculateETA } from "../utils/helpers";
-import ProgressBar from "../components/ProgressBar";
-import PhaseCard from "../components/PhaseCard";
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine
-} from "recharts";
+import React, { useMemo } from 'react'
+import { Link } from 'react-router-dom'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { Activity, BookOpen, Flame, TrendingUp, Target, Calendar, ChevronRight, Award } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+import { statsApi, progressApi } from '../services/api'
+import { useApi } from '../hooks/useApi'
+import StatCard from '../components/StatCard'
+import ProgressBar from '../components/ProgressBar'
+import ProgressRing from '../components/ProgressRing'
+import StreakBadge from '../components/StreakBadge'
+import StreakCalendar from '../components/StreakCalendar'
+import LoadingSpinner from '../components/LoadingSpinner'
+import EmptyState from '../components/EmptyState'
+import { format, addDays } from 'date-fns'
+
+const TOTAL_SESSIONS_GOAL = 200
+const TOTAL_QUESTIONS_GOAL = 450
 
 export default function Dashboard() {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  //const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
 
-  useEffect(() => {
-    fetchDashboard()
-      .then(r => setData(r.data))
-      .catch(() => {
-        // Fallback to localStorage backup
-        const backup = getBackup();
-        if (backup.totalSessions !== undefined) {
-          setData(buildFromBackup(backup));
-        } else {
-          setError("Cannot reach server. Log some data first.");
-        }
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  //const { data: stats, loading: statsLoading } = useApi(() => statsApi.getDashboard())
+  //const { data: progressData, loading: progressLoading } = useApi(() => progressApi.getAll())
 
-  if (loading) return <div style={{ color: "#475569", textAlign: "center", padding: 40 }}>Loading dashboard...</div>;
-  if (error || !data) return (
-    <div>
-      <div className="alert alert-warn">{error || "No data yet."}</div>
-      <p style={{ color: "#64748b", fontSize: 13 }}>
-        <Link to="/daily" style={{ color: "#60a5fa" }}>Log your first day →</Link>
-      </p>
-    </div>
-  );
+  const { data: stats, loading: statsLoading } = useApi(
+  () => statsApi.getDashboard(),
+  [user],
+  { immediate: !!user }
+)
 
-  const { overview, phases, weekly, chartData } = data;
-  const phase = overview?.currentPhase || 1;
+const { data: progressData, loading: progressLoading } = useApi(
+  () => progressApi.getAll(),
+  [user],
+  { immediate: !!user }
+)
 
+  //  SAFE DATA FIX
+  const entries = Array.isArray(progressData?.entries)
+    ? progressData.entries
+    : Array.isArray(progressData)
+    ? progressData
+    : []
+
+  //  SAFE MEMO
+  const weeklyData = useMemo(() => {
+    if (!Array.isArray(entries)) return []
+
+    const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+    const today = new Date()
+
+    return days.map((day, i) => {
+      const date = addDays(today, i - 6)
+      const dateStr = format(date, 'yyyy-MM-dd')
+
+      const entry = entries.find(e =>
+        e?.date && e.date.startsWith(dateStr)
+      )
+
+
+      // modifyting 
+      if (authLoading) {
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h1 className="page-title" style={{ marginBottom: 0 }}>Dashboard</h1>
-        <span className={`badge ${phase === 1 ? "badge-blue" : "badge-purple"}`}>Phase {phase}</span>
-      </div>
-
-      {/* Quick stats */}
-      <div className="grid-4" style={{ marginBottom: 14 }}>
-        <div className="stat-box">
-          <div className="stat-label">SESSIONS</div>
-          <div className="stat-value" style={{ color: "#3b82f6" }}>{overview.totalSessions}</div>
-          <div style={{ fontSize: 10, color: "#475569" }}>of 720</div>
-        </div>
-        <div className="stat-box">
-          <div className="stat-label">SHEET QS</div>
-          <div className="stat-value" style={{ color: "#a855f7" }}>{overview.totalQuestions}</div>
-          <div style={{ fontSize: 10, color: "#475569" }}>of 582</div>
-        </div>
-        <div className="stat-box">
-          <div className="stat-label">DAYS LOGGED</div>
-          <div className="stat-value" style={{ color: "#4ade80" }}>{overview.daysLogged}</div>
-        </div>
-        <div className="stat-box">
-          <div className="stat-label">AVG/DAY</div>
-          <div className="stat-value" style={{ color: "#f97316" }}>{overview.avgSessions}s</div>
-          <div style={{ fontSize: 10, color: "#475569" }}>{overview.avgQuestions}q</div>
-        </div>
-      </div>
-
-      {/* Overall progress */}
-      <div className="card">
-        <div className="card-title">OVERALL PROGRESS</div>
-        <div style={{ marginBottom: 14 }}>
-          <ProgressBar
-            label="🎥 Sessions"
-            pct={Number(phases.overall.sessions.pct)}
-            color="#3b82f6"
-            height={10}
-            left={phases.overall.sessions.total - phases.overall.sessions.done}
-            eta={phases.overall.eta.sessions}
-          />
-        </div>
-        <ProgressBar
-          label="💻 Sheet Questions"
-          pct={Number(phases.overall.questions.pct)}
-          color="#a855f7"
-          height={10}
-          left={phases.overall.questions.total - phases.overall.questions.done}
-          eta={phases.overall.eta.questions}
-        />
-      </div>
-
-      {/* Phase cards */}
-      <PhaseCard
-        phase={1}
-        color="#3b82f6"
-        status={phase === 1 ? "active" : "done"}
-        sessData={{
-          done: phases.phase1.sessions.done,
-          total: 348,
-          pct: Number(phases.phase1.sessions.pct),
-        }}
-        qData={{
-          done: phases.phase1.questions.done,
-          total: 283,
-          pct: Number(phases.phase1.questions.pct),
-        }}
-        eta={phases.phase1.eta}
-      />
-
-      <PhaseCard
-        phase={2}
-        color="#a855f7"
-        status={phase === 2 ? "active" : phase > 2 ? "done" : "locked"}
-        sessData={{
-          done: phases.phase2.sessions.done,
-          total: 372,
-          pct: Number(phases.phase2.sessions.pct),
-        }}
-        qData={{
-          done: phases.phase2.questions.done,
-          total: 299,
-          pct: Number(phases.phase2.questions.pct),
-        }}
-      />
-
-      {/* Weekly stats */}
-      <div className="card">
-        <div className="card-title">THIS WEEK</div>
-        <div className="grid-3">
-          <div className="stat-box">
-            <div className="stat-label">SESSIONS</div>
-            <div className="stat-value" style={{ color: "#3b82f6" }}>{weekly.sessions}</div>
-          </div>
-          <div className="stat-box">
-            <div className="stat-label">QUESTIONS</div>
-            <div className="stat-value" style={{ color: "#a855f7" }}>{weekly.questions}</div>
-          </div>
-          <div className="stat-box">
-            <div className="stat-label">DAYS ACTIVE</div>
-            <div className="stat-value" style={{ color: "#4ade80" }}>{weekly.daysLogged} / 5</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Chart */}
-      {chartData && chartData.length > 0 && (
-        <div className="card">
-          <div className="card-title">LAST 7 DAYS — SESSIONS (target vs actual)</div>
-          <ResponsiveContainer width="100%" height={160}>
-            <BarChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-              <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#475569" }} tickFormatter={v => v.slice(5)} />
-              <YAxis tick={{ fontSize: 9, fill: "#475569" }} />
-              <Tooltip
-                contentStyle={{ background: "#0d0d1f", border: "1px solid #1e293b", borderRadius: 8, fontSize: 11 }}
-                labelStyle={{ color: "#94a3b8" }}
-              />
-              <ReferenceLine y={2} stroke="#1e293b" strokeDasharray="4 4" />
-              <Bar dataKey="target" fill="#1e3a5f" name="Target" radius={[3,3,0,0]} />
-              <Bar dataKey="sessions" fill="#3b82f6" name="Done" radius={[3,3,0,0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
-      {/* Quick nav */}
-      <div className="grid-2">
-        <Link to="/daily" style={{ textDecoration: "none" }}>
-          <div className="card" style={{ borderColor: "#3b82f633", cursor: "pointer", textAlign: "center" }}>
-            <div style={{ fontSize: 22, marginBottom: 4 }}>➕</div>
-            <div style={{ fontSize: 12, color: "#60a5fa", fontWeight: 700 }}>Log Today</div>
-          </div>
-        </Link>
-        <Link to="/contest" style={{ textDecoration: "none" }}>
-          <div className="card" style={{ borderColor: "#f9731633", cursor: "pointer", textAlign: "center" }}>
-            <div style={{ fontSize: 22, marginBottom: 4 }}>🏆</div>
-            <div style={{ fontSize: 12, color: "#fb923c", fontWeight: 700 }}>Log Contest</div>
-          </div>
-        </Link>
-      </div>
+    <div className="min-h-screen flex items-center justify-center text-white">
+      Loading...
     </div>
-  );
+  )
 }
 
-// Build minimal dashboard from localStorage backup
-function buildFromBackup(backup) {
-  const { totalSessions = 0, totalQuestions = 0 } = backup;
-  const p1s = Math.min(totalSessions, 348);
-  const p1q = Math.min(totalQuestions, 283);
-  const avg = 2;
-  return {
-    overview: { totalSessions, totalQuestions, daysLogged: 0, currentPhase: totalSessions < 348 ? 1 : 2, avgSessions: avg, avgQuestions: avg },
-    phases: {
-      overall: {
-        sessions: { done: totalSessions, total: 720, pct: ((totalSessions / 720) * 100).toFixed(1) },
-        questions: { done: totalQuestions, total: 582, pct: ((totalQuestions / 582) * 100).toFixed(1) },
-        eta: { sessions: calculateETA(720 - totalSessions, avg), questions: calculateETA(582 - totalQuestions, avg) },
-      },
-      phase1: {
-        sessions: { done: p1s, total: 348, pct: ((p1s / 348) * 100).toFixed(1) },
-        questions: { done: p1q, total: 283, pct: ((p1q / 283) * 100).toFixed(1) },
-        eta: { sessions: calculateETA(348 - p1s, avg), questions: calculateETA(283 - p1q, avg) },
-      },
-      phase2: {
-        sessions: { done: Math.max(0, totalSessions - 348), total: 372, pct: "0.0" },
-        questions: { done: Math.max(0, totalQuestions - 283), total: 299, pct: "0.0" },
-      },
-    },
-    weekly: { sessions: 0, questions: 0, daysLogged: 0 },
-    chartData: [],
-  };
+
+      return {
+        day,
+        Sessions: entry?.sessionsCompleted || 0,
+        Questions: entry?.questionsSolved || 0,
+      }
+    })
+  }, [entries])
+
+  //  SAFE CALC
+  const completionPct = Math.round(
+    ((stats?.totalSessions || 0) / TOTAL_SESSIONS_GOAL) * 100
+  )
+
+  const loading = statsLoading || progressLoading
+
+  //  DEBUG (remove later)
+  console.log("stats:", stats)
+  console.log("progressData:", progressData)
+  console.log("entries:", entries)
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-8 text-white">
+
+      <h1 className="text-2xl font-bold mb-6">
+        Hey, {user?.name || 'User'} 
+      </h1>
+
+      {loading ? (
+        <LoadingSpinner text="Loading dashboard..." />
+      ) : (
+        <>
+          {/* SIMPLE SAFE UI FIRST */}
+
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <StatCard label="Sessions" value={stats?.totalSessions || 0} icon={Activity} />
+            <StatCard label="Questions" value={stats?.totalQuestions || 0} icon={Target} />
+          </div>
+
+          <div className="mb-6">
+            <ProgressBar
+              label="Sessions Progress"
+              value={stats?.totalSessions || 0}
+              max={TOTAL_SESSIONS_GOAL}
+            />
+          </div>
+
+          {/* Chart */}
+          <div className="bg-slate-900 p-4 rounded-xl mb-6">
+            <h2 className="mb-4">Weekly Progress</h2>
+
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={weeklyData}>
+                <CartesianGrid stroke="#1e293b" />
+                <XAxis dataKey="day" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="Sessions" fill="#f97316" />
+                <Bar dataKey="Questions" fill="#3b82f6" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Entries */}
+          <div className="bg-slate-900 p-4 rounded-xl">
+            <h2 className="mb-4">Recent Entries</h2>
+
+            {entries.length === 0 ? (
+              <p className="text-slate-400">No entries yet</p>
+            ) : (
+              entries.slice(0,5).map((e) => (
+                <div key={e._id} className="mb-2 text-sm">
+                  {e.topic || "No topic"} — {e.sessionsCompleted}s / {e.questionsSolved}q
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  )
 }
