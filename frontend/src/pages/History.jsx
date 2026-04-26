@@ -1,6 +1,9 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { progressApi } from '../services/api'
-import { useApi, useAsyncAction } from '../hooks/useApi'
+
+//import { useApi, useAsyncAction } from '../hooks/useApi'
+import { useApi } from '../hooks/useApi'
+
 import { Search, Filter, Edit3, Trash2, X, Check, ChevronDown, History as HistoryIcon, Brain } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format, parseISO } from 'date-fns'
@@ -22,20 +25,43 @@ function EditModal({ entry, onSave, onClose }) {
     notes: entry.notes || '',
     revision: entry.revision || false,
   })
-  const { loading, run } = useAsyncAction()
+
+  //const { loading, run } = useAsyncAction()
+  const [loading, setLoading] = useState(false)
+
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
+  // const handleSave = async () => {
+  //   await run(async () => {
+  //     await progressApi.update(entry._id, {
+  //       ...form,
+  //       sessionsCompleted: Number(form.sessionsCompleted),
+  //       questionsSolved: Number(form.questionsSolved),
+  //     })
+  //     toast.success('Entry updated!')
+  //     onSave()
+  //   })
+  // }
+
   const handleSave = async () => {
-    await run(async () => {
-      await progressApi.update(entry._id, {
-        ...form,
-        sessionsCompleted: Number(form.sessionsCompleted),
-        questionsSolved: Number(form.questionsSolved),
-      })
-      toast.success('Entry updated!')
-      onSave()
+  try {
+    setLoading(true)
+
+    await progressApi.update(entry._id, {
+      ...form,
+      sessionsCompleted: Number(form.sessionsCompleted),
+      questionsSolved: Number(form.questionsSolved),
     })
+
+    toast.success('Entry updated!')
+    onSave()
+    } catch (err) {
+    console.error(err)
+    toast.error('Update failed')
+   } finally {
+    setLoading(false)
+   }
   }
 
   return (
@@ -114,16 +140,25 @@ export default function History() {
   const [deleteId, setDeleteId] = useState(null)
 
   //const { data, loading, refetch } = useApi(() => progressApi.getAll())
-  const {
+ const {
   data,
   loading,
   error,
   execute: fetchHistory
-  } = useApi(progressApi.getAll);
+  } = useApi(() => progressApi.getAll());
 
 
 
-  const { run: runDelete } = useAsyncAction()
+  //const { run: runDelete } = useAsyncAction() // this is wrong because useAsyncAction is a hook and cannot be called inside a function. We need to move it inside the component and then use it in handleDelete. We also need to handle errors properly in handleDelete.
+
+  const runDelete = async (fn) => {
+  try {
+    await fn()
+  } catch (err) {
+    console.error(err)
+  }
+}
+
 
   useEffect(() => {
   fetchHistory();
@@ -135,8 +170,11 @@ export default function History() {
   // }, [data])
 
   const entries = useMemo(() => {
-  const raw = data?.data || [];
+
+  const raw = data?.data || data || []
+
   return [...raw].sort((a, b) => new Date(b.date) - new Date(a.date));
+
   }, [data]);
 
 
@@ -151,10 +189,14 @@ export default function History() {
 
   const handleDelete = async (id) => {
     await runDelete(async () => {
-      await progressApi.delete(id)
+
+      //await progressApi.delete(id) // this is wrong because progressApi.delete is not defined. We need to define it in the api.js file and then use it here. We also need to handle errors properly in this function. We also need to confirm the deletion with the user before proceeding.
+      await progressApi.remove(id)
+
       toast.success('Entry deleted')
       setDeleteId(null)
-      fetchHistory()
+
+      await fetchHistory()
     })
   }
 
