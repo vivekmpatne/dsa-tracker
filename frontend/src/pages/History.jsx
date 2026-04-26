@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { progressApi } from '../services/api'
 
-//import { useApi, useAsyncAction } from '../hooks/useApi'
+
 import { useApi } from '../hooks/useApi'
 
 import { Search, Filter, Edit3, Trash2, X, Check, ChevronDown, History as HistoryIcon, Brain } from 'lucide-react'
@@ -26,7 +26,7 @@ function EditModal({ entry, onSave, onClose }) {
     revision: entry.revision || false,
   })
 
-  //const { loading, run } = useAsyncAction()
+
   const [loading, setLoading] = useState(false)
 
 
@@ -149,15 +149,13 @@ export default function History() {
 
 
 
-  //const { run: runDelete } = useAsyncAction() // this is wrong because useAsyncAction is a hook and cannot be called inside a function. We need to move it inside the component and then use it in handleDelete. We also need to handle errors properly in handleDelete.
-
   const runDelete = async (fn) => {
   try {
     await fn()
   } catch (err) {
     console.error(err)
   }
-}
+  }
 
 
   useEffect(() => {
