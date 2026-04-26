@@ -12,6 +12,7 @@ const app = express();
 //  ADD THIS BEFORE routes
 app.use(cors({
   origin: [
+    "http://localhost:3000",
     "http://localhost:5173",
     "https://vivek-dsa-tracker.vercel.app" // your frontend
   ],

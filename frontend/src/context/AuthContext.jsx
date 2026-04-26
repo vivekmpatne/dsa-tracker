@@ -1,54 +1,81 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import api from '../services/api'
+import { authApi } from '../services/api'
 
-export const AuthContext = createContext(null) 
+export const AuthContext = createContext(null)
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
-  const [token, setToken] = useState(() => localStorage.getItem('dsa_token'))
+  const [token, setToken] = useState(localStorage.getItem('dsa_token'))
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('dsa_token')
     const storedUser = localStorage.getItem('dsa_user')
-    if (storedToken && storedUser) {
-      setToken(storedToken)
+
+    if (token && storedUser) {
       setUser(JSON.parse(storedUser))
       setIsAuthenticated(true)
-      api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`
     }
+
     setLoading(false)
-  }, [])
+  }, [token])
 
+  // ✅ LOGIN FIXED
   const login = useCallback(async (email, password) => {
-    const res = await api.post('/auth/login', { email, password })
-    const { token: newToken, user: newUser } = res.data
-    localStorage.setItem('dsa_token', newToken)
-    localStorage.setItem('dsa_user', JSON.stringify(newUser))
-    api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`
-    setToken(newToken)
-    setUser(newUser)
-    setIsAuthenticated(true)
-    return res.data
+    try {
+      const res = await authApi.login({ email, password })
+
+      console.log("LOGIN SUCCESS:", res.data)
+
+      const { token, user } = res.data
+
+      localStorage.setItem('dsa_token', token)
+      localStorage.setItem('dsa_user', JSON.stringify(user))
+
+      setToken(token)
+      setUser(user)
+      setIsAuthenticated(true)
+
+      return res.data
+    } catch (err) {
+      console.log("LOGIN ERROR:", err.response?.data)
+
+      throw new Error(
+        err.response?.data?.message || "Login failed"
+      )
+    }
   }, [])
 
+  // ✅ SIGNUP FIXED
   const signup = useCallback(async (name, email, password) => {
-    const res = await api.post('/auth/signup', { name, email, password })
-    const { token: newToken, user: newUser } = res.data
-    localStorage.setItem('dsa_token', newToken)
-    localStorage.setItem('dsa_user', JSON.stringify(newUser))
-    api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`
-    setToken(newToken)
-    setUser(newUser)
-    setIsAuthenticated(true)
-    return res.data
+    try {
+      const res = await authApi.signup({ name, email, password })
+
+      console.log("SIGNUP SUCCESS:", res.data)
+
+      const { token, user } = res.data
+
+      localStorage.setItem('dsa_token', token)
+      localStorage.setItem('dsa_user', JSON.stringify(user))
+
+      setToken(token)
+      setUser(user)
+      setIsAuthenticated(true)
+
+      return res.data
+    } catch (err) {
+      console.log("SIGNUP ERROR:", err.response?.data)
+
+      throw new Error(
+        err.response?.data?.message || "Signup failed"
+      )
+    }
   }, [])
 
   const logout = useCallback(() => {
     localStorage.removeItem('dsa_token')
     localStorage.removeItem('dsa_user')
-    delete api.defaults.headers.common['Authorization']
+
     setToken(null)
     setUser(null)
     setIsAuthenticated(false)

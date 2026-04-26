@@ -1,56 +1,74 @@
-import axios from 'axios'
+// frontend/src/services/api.js
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-const api = axios.create({
-  baseURL: BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-})
+// ─── Helper ─────────────────────────────────────────────────────
 
-// Request interceptor — attach token
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('dsa_token')
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`
-    }
-    return config
-  },
-  (error) => Promise.reject(error)
-)
+function getToken() {
+  return localStorage.getItem("dsa_token");
+}
 
-// Response interceptor — handle 401
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('dsa_token')
-      localStorage.removeItem('dsa_user')
-      window.location.href = '/login'
-    }
-    return Promise.reject(error)
+async function request(method, path, body = null) {
+  const headers = { "Content-Type": "application/json" };
+
+  const token = getToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
   }
-)
 
-export default api
+  const options = {
+    method,
+    headers,
+  };
 
-// ── Auth ────────────────────────────────────────────────────────────
+  if (body) {
+    options.body = JSON.stringify(body);
+  }
+
+  const res = await fetch(`${BASE_URL}${path}`, options);
+
+  let data = {};
+  try {
+    data = await res.json();
+  } catch {
+    data = {};
+  }
+
+  if (!res.ok) {
+    throw {
+      response: {
+        data: data,
+      },
+    };
+  }
+
+  // ✅ IMPORTANT: return axios-like response
+  return {
+    data: data,
+    status: res.status,
+  };
+}
+
+// ─── Auth ─────────────────────────────────────────────────────
+
 export const authApi = {
-  login: (data) => api.post('/auth/login', data),
-  signup: (data) => api.post('/auth/signup', data),
-}
+  signup: (payload) => request("POST", "/auth/signup", payload),
+  login: (payload) => request("POST", "/auth/login", payload),
+};
 
-// ── Progress ─────────────────────────────────────────────────────────
-export const progressApi = {
-  getAll: (params) => api.get('/progress', { params }),
-  create: (data) => api.post('/progress', data),
-  update: (id, data) => api.put(`/progress/${id}`, data),
-  delete: (id) => api.delete(`/progress/${id}`),
-}
+// ─── Stats ────────────────────────────────────────────────────
 
-// ── Stats ─────────────────────────────────────────────────────────────
 export const statsApi = {
-  getDashboard: () => api.get('/stats/dashboard'),
-}
+  getDashboard: () => request("GET", "/stats/dashboard"),
+};
+
+// ─── Progress ─────────────────────────────────────────────────
+
+export const progressApi = {
+  getAll: () => request("GET", "/progress"),
+  getToday: () => request("GET", "/progress/today"),
+  getSummary: () => request("GET", "/progress/summary"),
+  create: (payload) => request("POST", "/progress", payload),
+  update: (id, payload) => request("PUT", `/progress/${id}`, payload),
+  remove: (id) => request("DELETE", `/progress/${id}`),
+};

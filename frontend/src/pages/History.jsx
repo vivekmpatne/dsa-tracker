@@ -105,6 +105,7 @@ function EditModal({ entry, onSave, onClose }) {
 }
 
 export default function History() {
+
   const [search, setSearch] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -112,13 +113,32 @@ export default function History() {
   const [showFilters, setShowFilters] = useState(false)
   const [deleteId, setDeleteId] = useState(null)
 
-  const { data, loading, refetch } = useApi(() => progressApi.getAll())
+  //const { data, loading, refetch } = useApi(() => progressApi.getAll())
+  const {
+  data,
+  loading,
+  error,
+  execute: fetchHistory
+  } = useApi(progressApi.getAll);
+
+
+
   const { run: runDelete } = useAsyncAction()
 
+  useEffect(() => {
+  fetchHistory();
+  }, []);
+  
+  // const entries = useMemo(() => {
+  //   const raw = data?.entries || data || []
+  //   return [...raw].sort((a, b) => new Date(b.date) - new Date(a.date))
+  // }, [data])
+
   const entries = useMemo(() => {
-    const raw = data?.entries || data || []
-    return [...raw].sort((a, b) => new Date(b.date) - new Date(a.date))
-  }, [data])
+  const raw = data?.data || [];
+  return [...raw].sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [data]);
+
 
   const filtered = useMemo(() => {
     return entries.filter(e => {
@@ -134,7 +154,7 @@ export default function History() {
       await progressApi.delete(id)
       toast.success('Entry deleted')
       setDeleteId(null)
-      refetch()
+      fetchHistory()
     })
   }
 
@@ -146,7 +166,7 @@ export default function History() {
       {editEntry && (
         <EditModal
           entry={editEntry}
-          onSave={() => { setEditEntry(null); refetch() }}
+          onSave={() => { setEditEntry(null); fetchHistory(); }}
           onClose={() => setEditEntry(null)}
         />
       )}

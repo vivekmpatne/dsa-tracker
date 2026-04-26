@@ -34,7 +34,8 @@ export default function Signup() {
       toast.success("Account created! Let's grind 🔥")
       navigate('/dashboard')
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Signup failed')
+      //toast.error(err.response?.data?.message || 'Signup failed')
+      toast.error(err.response?.data?.message || "Signup failed");
     } finally {
       setLoading(false)
     }

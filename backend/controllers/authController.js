@@ -15,8 +15,13 @@ const generateToken = (id) => {
  * @route   POST /api/auth/signup
  * @access  Public
  */
+
+
 const signup = async (req, res) => {
   try {
+    
+    // new line added for logging request body
+    console.log("REQ BODY:", req.body);
     const { name, email, password } = req.body;
 
     // Basic field validation

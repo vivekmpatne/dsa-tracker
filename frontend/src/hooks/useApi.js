@@ -1,38 +1,45 @@
-import { useState, useEffect, useCallback } from 'react'
+// frontend/src/hooks/useApi.js
+// A reusable hook that wraps any async API call with loading / error / data state.
+//
+// Usage:
+//   const { data, loading, error, execute } = useApi(statsApi.getDashboard);
+//   useEffect(() => { execute(); }, []);
+//
+//   const { loading, execute: createEntry } = useApi(progressApi.create);
+//   await createEntry(payload);   // returns the result too
 
-export const useApi = (apiFn, deps = [], options = {}) => {
-  const { immediate = true, onSuccess, onError } = options
-  const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(immediate)
-  const [error, setError] = useState(null)
+import { useState, useCallback } from "react";
 
-  const execute = useCallback(async (...args) => {
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await apiFn(...args)
+export default function useApi(apiFn) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-      // ✅ FIX: unwrap backend response properly
-      const finalData = res.data?.data || res.data
+  // execute() accepts the same args apiFn expects and returns the result.
+  const execute = useCallback(
+    async (...args) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await apiFn(...args);
+        setData(result);
+        return result;          // ← callers can await the return value
+      } catch (err) {
+        setError(err.message || "Something went wrong");
+        return null;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [apiFn]
+  );
 
-      setData(finalData)
-      onSuccess?.(finalData)
-      return finalData
-    } catch (err) {
-      const msg = err.response?.data?.message || err.message || 'Something went wrong'
-      setError(msg)
-      onError?.(msg)
-      throw err
-    } finally {
-      setLoading(false)
-    }
-  }, deps)
+  // reset clears all state (handy before re-fetching)
+  const reset = useCallback(() => {
+    setData(null);
+    setError(null);
+    setLoading(false);
+  }, []);
 
-  useEffect(() => {
-    if (immediate) execute()
-  }, [execute])
-
-  const refetch = useCallback(() => execute(), [execute])
-
-  return { data, loading, error, execute, refetch }
+  return { data, loading, error, execute, reset };
 }
