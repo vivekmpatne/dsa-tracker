@@ -67,7 +67,7 @@ dsa-tracker/
 
 It looks like:
 ```
-mongodb+srv://vivek:<password>@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority
+mongodb+srv: your_mongodb_uri_here
 ```
 
 Replace `<password>` with your actual password.
@@ -88,7 +88,7 @@ cp .env.example .env
 
 Edit `.env`:
 ```
-MONGO_URI=mongodb+srv://vivek:yourpassword@cluster0.xxxxx.mongodb.net/dsa-tracker?retryWrites=true&w=majority
+MONGO_URI=mongodb+srv: your_mongodb_uri_here
 PORT=5000
 FRONTEND_URL=http://localhost:5173
 ```
